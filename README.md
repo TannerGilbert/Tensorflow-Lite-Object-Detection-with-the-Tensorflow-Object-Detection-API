@@ -1,18 +1,16 @@
 # Tensorflow Lite Object Detection with the Tensorflow Object Detection API
 
+[![TensorFlow 1.15](https://img.shields.io/badge/TensorFlow-1.15-FF6F00?logo=tensorflow)](https://github.com/tensorflow/tensorflow/releases/tag/v1.15.0)
+
 ![Object Detection Example](doc/object_detection_with_edgetpu.png)
 
+# 1.Train a object detection model using the Tensorflow OD API
 
-
-# 1.Train a object detection model using the Tensorflow Object Detection API
-
-![Custom Object Detector Example](doc/custom_object_detector.png)
-
-The first step of creating a object detector that works with Tensorflow Lite is to train a object detector. For a complete step by step guide on how to train your own custom object detector check out [my article](https://gilberttanner.com/blog/creating-your-own-objectdetector).
+The first step of creating a object detector that works with Tensorflow Lite is to train a object detector. For a complete step by step guide on how to train your own custom object detector check out [my Github repository](https://github.com/TannerGilbert/Tensorflow-Object-Detection-API-Train-Model/tree/tf1).
 
 # 2.Convert the model to Tensorflow Lite
 
-After you have a Tensorflow Object Detection model you can start to convert it to Tensorflow Lite.
+After you have a Tensorflow OD model you can start to convert it to Tensorflow Lite.
 
 This is a three-step process:
 1. Export frozen inference graph for TFLite
@@ -23,12 +21,33 @@ This is a three-step process:
 
 After training the model you need to export the model so that the graph architecture and network operations are compatible with Tensorflow Lite. This can be done with the ```export_tflite_ssd_graph.py``` file.
 
-```bash
-mkdir inference_graph
+To make these commands easier to run, let’s set up some environment variables:
 
-python export_inference_graph.py --pipeline_config_path training/faster_rcnn_inception_v2_pets.config --trained_checkpoint_prefix training/model.ckpt-XXXX --output_directory inference_graph --add_postprocessing_op=true
+```bash
+export CONFIG_FILE=PATH_TO_BE_CONFIGURED/pipeline.config
+export CHECKPOINT_PATH=PATH_TO_BE_CONFIGURED/model.ckpt-XXXX
+export OUTPUT_DIR=/tmp/tflite
 ```
+
+on Windows use ```set``` instead of ```export```:
+
+```bash
+set CONFIG_FILE=PATH_TO_BE_CONFIGURED/pipeline.config
+set CHECKPOINT_PATH=PATH_TO_BE_CONFIGURED/model.ckpt-XXXX
+set OUTPUT_DIR=C:<path>/tflite
+```
+
 XXXX represents the highest number.
+
+```bash
+python export_tflite_ssd_graph.py \
+    --pipeline_config_path=$CONFIG_FILE \
+    --trained_checkpoint_prefix=$CHECKPOINT_PATH \
+    --output_directory=$OUTPUT_DIR \
+    --add_postprocessing_op=true
+```
+
+In the ```OUTPUT_DIR``` you should now see two files: tflite_graph.pb and tflite_graph.pbtxt
 
 ## 2.2 Build Tensorflow from source
 
@@ -53,35 +72,33 @@ To create a optimized Tensorflow Lite model we need to run TOCO. TOCO is locate 
 If you want to convert a quantized model you can run the following command:
 
 ```bash
-export OUTPUT_DIR=/tmp/tflite
 bazel run --config=opt tensorflow/lite/toco:toco -- \
---input_file=$OUTPUT_DIR/tflite_graph.pb \
---output_file=$OUTPUT_DIR/detect.tflite \
---input_shapes=1,300,300,3 \
---input_arrays=normalized_input_image_tensor \
---output_arrays='TFLite_Detection_PostProcess','TFLite_Detection_PostProcess:1','TFLite_Detection_PostProcess:2','TFLite_Detection_PostProcess:3' \
---inference_type=QUANTIZED_UINT8 \
---mean_values=128 \
---std_values=128 \
---change_concat_input_ranges=false \
---allow_custom_ops
+    --input_file=$OUTPUT_DIR/tflite_graph.pb \
+    --output_file=$OUTPUT_DIR/detect.tflite \
+    --input_shapes=1,300,300,3 \
+    --input_arrays=normalized_input_image_tensor \
+    --output_arrays='TFLite_Detection_PostProcess','TFLite_Detection_PostProcess:1','TFLite_Detection_PostProcess:2','TFLite_Detection_PostProcess:3' \
+    --inference_type=QUANTIZED_UINT8 \
+    --mean_values=128 \
+    --std_values=128 \
+    --change_concat_input_ranges=false \
+    --allow_custom_ops
 ```
 
-If you are using a floating point model like a faster rcnn you'll need to change to command a bit:
+If you are using a floating point model you need to change the command:
 
 ```bash
-export OUTPUT_DIR=/tmp/tflite
 bazel run --config=opt tensorflow/lite/toco:toco -- \
---input_file=$OUTPUT_DIR/tflite_graph.pb \
---output_file=$OUTPUT_DIR/detect.tflite \
---input_shapes=1,300,300,3 \
---input_arrays=normalized_input_image_tensor \
---output_arrays='TFLite_Detection_PostProcess','TFLite_Detection_PostProcess:1','TFLite_Detection_PostProcess:2','TFLite_Detection_PostProcess:3' \
---inference_type=FLOAT  \
---allow_custom_ops
+    --input_file=$OUTPUT_DIR/tflite_graph.pb \
+    --output_file=$OUTPUT_DIR/detect.tflite \
+    --input_shapes=1,300,300,3 \
+    --input_arrays=normalized_input_image_tensor \
+    --output_arrays='TFLite_Detection_PostProcess','TFLite_Detection_PostProcess:1','TFLite_Detection_PostProcess:2','TFLite_Detection_PostProcess:3' \
+    --inference_type=FLOAT  \
+    --allow_custom_ops
 ```
 
-If you are working on Windows you might need to remove the ' if the command doesn't work. For more information on how to use TOCO check out [the official instructions](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/running_on_mobile_tensorflowlite.md).
+If things ran successfully, you should now see a third file in the /tmp/tflite directory called detect.tflite.
 
 ### 2.3.2 Create new labelmap for Tensorflow Lite
 
