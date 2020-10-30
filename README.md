@@ -6,16 +6,15 @@
 
 # 1.Train a object detection model using the Tensorflow OD API
 
-The first step of creating a object detector that works with Tensorflow Lite is to train a object detector. For a complete step by step guide on how to train your own custom object detector check out [my Github repository](https://github.com/TannerGilbert/Tensorflow-Object-Detection-API-Train-Model/tree/tf1).
+For this guide you can either use a pre-trained model from the [Tensorflow Model zoo](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md) or you can train your own custom model as described in [one of my other Github repositories](https://github.com/TannerGilbert/Tensorflow-Object-Detection-API-Train-Model/tree/tf1).
 
 # 2.Convert the model to Tensorflow Lite
 
 After you have a Tensorflow OD model you can start to convert it to Tensorflow Lite.
 
-This is a three-step process:
+This is a two-step process:
 1. Export frozen inference graph for TFLite
-2. Build Tensorflow from source (needed for the third step)
-3. Using TOCO to create a optimized TensorFlow Lite Model
+2. Using the *tflite_convert* to create a optimized TensorFlow Lite Model
 
 ## 2.1 Export frozen inference graph for TFLite
 
@@ -49,30 +48,16 @@ python export_tflite_ssd_graph.py \
 
 In the ```OUTPUT_DIR``` you should now see two files: tflite_graph.pb and tflite_graph.pbtxt
 
-## 2.2 Build Tensorflow from source
+## 2.2 Convert to TFLite
 
-Now, you need to convert the actual model into an optimized FlatBuffer format that runs efficiently on Tensorflow Lite. This can be done with the Tensorflow Lite Optimizing Converter (TOCO).
+To convert the frozen graph to Tensorflow Lite we need to run it through the Tensorflow Lite Converter. It converts the model into an optimized FlatBuffer format that runs efficiently on Tensorflow Lite.
 
-For this, to work you need to have Tensorflow installed from scratch. This is a tedious task which I wouldn't cover in this tutorial. But you can follow the official installation guide. I'd recommend you to create an Anaconda Environment specifically for this purpose.
-
-After building Tensorflow from scratch you're ready to start the with the conversation.
-
-## 2.3. Using TOCO to Create Optimzed TensorFlow Lite Model
-
-To convert the frozen graph to Tensorflow Lite we need to run it through the Tensorflow Lite Optimizing Converter (TOCO). TOCO converts the model into an optimized FlatBuffer format that runs efficiently on Tensorflow Lite.
-
-For this to work you need to have Tensorflow installed from scratch. This is a tedious task which I wouldn't cover in this tutorial. But you can follow the [official installation guide](https://www.tensorflow.org/install/source_windows). I'd recommend you to create a [Anaconda Environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) specificly for this purpose.
-
-After building Tensorflow from scratch you're ready to start the with the conversation.
-
-### 2.3.1 Create Tensorflow Lite model
-
-To create a optimized Tensorflow Lite model we need to run TOCO. TOCO is locate in the tensorflow/lite directory, which you should have after install Tensorflow from source.
+### 2.2.1 Create Tensorflow Lite model
 
 If you want to convert a quantized model you can run the following command:
 
 ```bash
-bazel run --config=opt tensorflow/lite/toco:toco -- \
+tflite_convert \
     --input_file=$OUTPUT_DIR/tflite_graph.pb \
     --output_file=$OUTPUT_DIR/detect.tflite \
     --input_shapes=1,300,300,3 \
@@ -88,7 +73,7 @@ bazel run --config=opt tensorflow/lite/toco:toco -- \
 If you are using a floating point model you need to change the command:
 
 ```bash
-bazel run --config=opt tensorflow/lite/toco:toco -- \
+tflite_convert \
     --input_file=$OUTPUT_DIR/tflite_graph.pb \
     --output_file=$OUTPUT_DIR/detect.tflite \
     --input_shapes=1,300,300,3 \
@@ -100,7 +85,7 @@ bazel run --config=opt tensorflow/lite/toco:toco -- \
 
 If things ran successfully, you should now see a third file in the /tmp/tflite directory called detect.tflite.
 
-### 2.3.2 Create new labelmap for Tensorflow Lite
+### 2.2.2 Create new labelmap for Tensorflow Lite
 
 Next you need to create a label map for Tensorflow Lite, since it doesn't have the same format as a classical Tensorflow labelmap.
 
@@ -134,7 +119,7 @@ c
 
 So basically the only thing you need to do is to create a new labelmap file and copy the display_names (names) from the other labelmap file into it.
 
-### 2.3.3 Optional: Convert Tensorflow Lite model to use with the Google Coral EdgeTPU
+### 2.2.3 Optional: Convert Tensorflow Lite model to use with the Google Coral EdgeTPU
 
 If you want to use the model with a Google Coral EdgeTPU you need to run it through the EdgeTPU Compiler. 
 
@@ -147,12 +132,14 @@ echo "deb https://packages.cloud.google.com/apt coral-edgetpu-stable main" | sud
 
 sudo apt-get update
 
-sudo apt-get install edgetpu
+sudo apt-get install edgetpu-compiler
 ```
 
 After installing the compiler you can convert the model with the following command:
 
-```edgetpu_compiler [options] model...```
+```
+!edgetpu_compiler --out_dir <output_directory> <path_to_tflite_file>
+```
 
 Before using the compiler, be sure you have a model that's compatible with the Edge TPU. For compatibility details, read [TensorFlow models on the Edge TPU](https://coral.ai/docs/edgetpu/models-intro/).
 
