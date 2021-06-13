@@ -1,6 +1,6 @@
 # Tensorflow Lite Object Detection with the Tensorflow Object Detection API
 
-[![TensorFlow 2.3](https://img.shields.io/badge/TensorFlow-2.3-FF6F00?logo=tensorflow)](https://github.com/tensorflow/tensorflow/releases/tag/v2.3.0)
+[![TensorFlow 2.5](https://img.shields.io/badge/TensorFlow-2.5-FF6F00?logo=tensorflow)](https://github.com/tensorflow/tensorflow/releases/tag/v2.5.0)
 
 ![Object Detection Example](doc/dog_detection.png)
 
@@ -10,7 +10,7 @@ TensorFlow Lite(TFLite) is TensorFlow’s lightweight solution for mobile and em
 
 This document walks you through converting a Tensorflow Object Detection API model to Tensorflow Lite.
 
-> NOTE: TFLite currently only supports SSD Architectures (excluding EfficientDet) for boxes-based detection. Support for EfficientDet is coming soon.
+> NOTE: TFLite currently only fully supports SSD Architectures (excluding EfficientDet) for boxes-based detection. CenterNet support is only experimental. For more information see [this notebook](https://github.com/tensorflow/models/blob/master/research/object_detection/colab_tutorials/centernet_on_device.ipynb)
 
 # 1.Train a object detection model using the Tensorflow OD API
 
@@ -73,7 +73,21 @@ converter.representative_dataset = <...>
 
 > Be sure to use a [representative dataset](https://www.tensorflow.org/lite/performance/post_training_quantization#full_integer_quantization)
 
-## 2.3 Create new labelmap for Tensorflow Lite
+## 2.3 Add Metadata
+
+To enable easy integration with mobile integrations using the [TFLite Task library](https://www.tensorflow.org/lite/inference_with_metadata/task_library/object_detector) the model can be packed with [TFLite Metadata](https://www.tensorflow.org/lite/convert/metadata).
+
+```python
+from tflite_support.metadata_writers import object_detector
+from tflite_support.metadata_writers import writer_utils
+
+writer = object_detector.MetadataWriter.create_for_inference(
+    writer_utils.load_file(_TFLITE_MODEL_PATH), input_norm_mean=[0],
+    input_norm_std=[255], label_file_paths=[_TFLITE_LABEL_PATH])
+writer_utils.save_file(writer.populate(), _TFLITE_MODEL_WITH_METADATA_PATH)
+```
+
+## 2.4 Create new labelmap for Tensorflow Lite
 
 Next you need to create a label map for Tensorflow Lite, since it doesn't have the same format as a classical Tensorflow labelmap.
 
@@ -107,7 +121,7 @@ c
 
 So basically the only thing you need to do is to create a new labelmap file and copy the display_names (names) from the other labelmap file into it.
 
-### 2.4 Optional: Convert Tensorflow Lite model to use with the Google Coral EdgeTPU
+### 2.5 Optional: Convert Tensorflow Lite model to use with the Google Coral EdgeTPU
 
 If you want to use the model with a Google Coral EdgeTPU you need to run it through the EdgeTPU Compiler. 
 
